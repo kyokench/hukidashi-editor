@@ -1,0 +1,85 @@
+.editor-container {
+  padding: 20px;
+}
+#editor {
+  border: 1px solid #ccc;
+  min-height: 300px;
+  padding: 10px;
+  background-color: #fff;
+}
+.toolbar button {
+  margin: 0 4px;
+}
+.save-controls {
+  margin-top: 12px;
+}
+
+/* 通知のスタイル */
+#saveMessage {
+  position: fixed;
+  bottom: 20px;
+
+  background-color: #4caf50;
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+  z-index: 1000;
+}
+
+#saveMessage.show {
+  opacity: 1;
+}
+
+.bubble {
+  position: relative;
+  max-width: 70%;
+  padding: 12px 16px;
+  margin: 16px 0;
+  font-size: 15px;
+  line-height: 1.6;
+  border-radius: 12px;
+  clear: both;
+  display: inline-block;
+}
+
+/* Aさん（左） */
+.bubble-a {
+  background-color: #d0ebff;
+  float: left;
+
+}
+
+.bubble-a::before {
+  content: "";
+  position: absolute;
+  top: 20px;
+  left: -8px;
+  width: 0;
+  height: 0;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-right: 10px solid #d0ebff;
+}
+
+/* Bさん（右） */
+.bubble-b {
+  background-color: #f0f0f0;
+  float: right;
+
+}
+
+.bubble-b::before {
+  content: "";
+  position: absolute;
+  top: 20px;
+  right: -8px;
+  width: 0;
+  height: 0;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-left: 10px solid #f0f0f0;
+}

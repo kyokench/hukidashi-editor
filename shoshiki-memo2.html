@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>エディターページ</title>
+  <!-- スタイルと共通スクリプト -->
+  <link rel="stylesheet" href="../style.css?20250630">
+  <link rel="stylesheet" href="editor-style2.css">
+  <script defer src="../sidebar.js"></script>
+</head>
+<body>
+
+<div id="header-placeholder"></div>
+<div class="page-wrapper">
+  <aside id="sidebar">
+    <!-- Sidebar content will be injected here by JS -->
+  </aside>
+  <div class="content-wrapper">
+    <div class="main">
+      <h1>エディターページ</h1>
+      <div class="editor-container">
+        <div class="toolbar">
+          <button onclick="execCmd('bold')"><b>太字</b></button>
+          <button onclick="execCmd('italic')"><i>斜体</i></button>
+          <button onclick="execCmd('underline')"><u>下線</u></button>
+          <button onclick="insertBubble('A')">💬 吹き出しA</button>
+          <button onclick="insertBubble('B')">💬 吹き出しB</button>
+        </div>
+
+        <div id="editor" contenteditable="true">
+        </div>
+
+        <div class="save-controls">
+          <button onclick="saveContent()">💾 保存</button>
+        </div>
+        <div id="saveMessage">保存しました</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 通知エリア -->
+
+
+<script>
+
+  function insertBubble(speaker) {
+    const selection = window.getSelection();
+    const editor = document.getElementById("editor");
+
+    if (!selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    if (!editor.contains(range.commonAncestorContainer)) return; // editor内のみ
+
+    const selectedText = selection.toString();
+    if (!selectedText.trim()) return;
+
+    const bubble = document.createElement("div");
+    bubble.className = speaker === 'A' ? "bubble bubble-a" : "bubble bubble-b";
+    bubble.innerHTML = `<span style="font-weight:bold;">${speaker}さん：</span><br>${selectedText}`;
+
+    // 選択範囲を吹き出しで置き換える
+    range.deleteContents();
+    range.insertNode(bubble);
+
+    // 選択解除（見た目すっきり）
+    selection.removeAllRanges();
+  }
+
+
+  function saveContent() {
+    const content = document.getElementById("editor").innerHTML;
+    localStorage.setItem("editorContent", content);
+    showSaveMessage();
+  }
+
+  function showSaveMessage() {
+    const msg = document.getElementById("saveMessage");
+    msg.classList.add("show");
+    setTimeout(() => {
+      msg.classList.remove("show");
+    }, 2000); // 2秒後に非表示
+  }
+
+  window.addEventListener("DOMContentLoaded", () => {
+    const saved = localStorage.getItem("editorContent");
+    if (saved) {
+      document.getElementById("editor").innerHTML = saved;
+    }
+  });
+</script>
+
+<script src="../load_header.js"></script>
+</body>
+</html>
