@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>エディターページ</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    
+    .editor-container {
+      padding: 20px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    #editor {
+      border: 1px solid #ccc;
+      min-height: 300px;
+      padding: 10px;
+      background-color: #fff;
+      overflow-wrap: break-word;
+      word-break: break-word;
+      overflow-x: auto;
+      border-radius: 4px;
+    }
+    
+    .toolbar {
+      margin-bottom: 10px;
+    }
+    
+    .toolbar button {
+      margin: 0 4px;
+      padding: 8px 12px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    
+    .toolbar button:hover {
+      background-color: #0056b3;
+    }
+    
+    .save-controls {
+      margin-top: 12px;
+    }
+
+    /* 通知のスタイル */
+    #saveMessage {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #4caf50;
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s ease;
+      z-index: 1000;
+    }
+
+    #saveMessage.show {
+      opacity: 1;
+    }
+
+    /* 共通 */
+    .bubble {
+      position: relative;
+      display: inline-block;
+      padding: 12px 16px;
+      margin: 10px 0;
+      font-size: 15px;
+      line-height: 1.6;
+      border-radius: 12px;
+      clear: both;
+      max-width: 90%;
+      word-wrap: break-word;
+    }
+
+    /* Aさん（左寄せ） */
+    .bubble-a {
+      background-color: #d0ebff;
+      margin-right: auto;
+      margin-left: 0;
+    }
+
+    .bubble-b {
+      background-color: #f0f0f0;
+      display: inline-block;
+      text-align: left;
+      border: 1px solid #ccc;
+      margin-left: auto;
+      margin-right: 0;
+    }
+
+    /* 矢印も調整 */
+    .bubble-a::before {
+      content: "";
+      position: absolute;
+      top: 14px;
+      left: -10px;
+      width: 0;
+      height: 0;
+      border-top: 8px solid transparent;
+      border-bottom: 8px solid transparent;
+      border-right: 10px solid #d0ebff;
+    }
+
+    .bubble-b::before {
+      content: "";
+      position: absolute;
+      top: 14px;
+      right: -10px;
+      width: 0;
+      height: 0;
+      border-top: 8px solid transparent;
+      border-bottom: 8px solid transparent;
+      border-left: 10px solid #f0f0f0;
+    }
+    
+    .bubble-wrapper {
+      display: flex;
+      margin: 10px 0;
+    }
+    
+    .bubble-wrapper.left {
+      justify-content: flex-start;
+    }
+    
+    .bubble-wrapper.right {
+      justify-content: flex-end;
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-wrapper">
+  <div class="content-wrapper">
+    <div class="main">
+      <h1>エディターページ</h1>
+      <div class="editor-container">
+        <div class="toolbar">
+          <button onclick="execCmd('bold')"><b>太字</b></button>
+          <button onclick="execCmd('italic')"><i>斜体</i></button>
+          <button onclick="execCmd('underline')"><u>下線</u></button>
+          <button onclick="insertBubble('A')">💬 吹き出しA</button>
+          <button onclick="insertBubble('B')">💬 吹き出しB</button>
+        </div>
+
+        <div id="editor" contenteditable="true">
+          <p>ここにテキストを入力してください。テキストを選択してから吹き出しボタンを押すと、選択したテキストが吹き出しになります。</p>
+        </div>
+
+        <div class="save-controls">
+          <button onclick="saveContent()">💾 保存</button>
+        </div>
+        <div id="saveMessage">保存しました</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function execCmd(command) {
+    document.execCommand(command, false, null);
+  }
+
+  function insertBubble(speaker) {
+    const selection = window.getSelection();
+    const editor = document.getElementById("editor");
+
+    if (!selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+
+    // 吹き出し内なら処理しない
+    const container = range.commonAncestorContainer;
+    const bubbleAncestor = container.nodeType === 3 ? container.parentElement.closest(".bubble") : container.closest(".bubble");
+    if (bubbleAncestor) return;
+
+    if (!editor.contains(container)) return;
+
+    const selectedText = selection.toString();
+    if (!selectedText.trim()) return;
+
+    const bubble = document.createElement("div");
+    bubble.className = speaker === 'A' ? "bubble bubble-a" : "bubble bubble-b";
+    bubble.innerHTML = `<span style="font-weight:bold;">${speaker}さん：</span><br>${selectedText}`;
+
+    const wrapper = document.createElement("div");
+    wrapper.className = `bubble-wrapper ${speaker === 'A' ? 'left' : 'right'}`;
+    wrapper.appendChild(bubble);
+
+    range.deleteContents();
+    range.insertNode(wrapper);
+
+    // カーソルを吹き出しの後に移動
+    const newRange = document.createRange();
+    newRange.setStartAfter(wrapper);
+    newRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(newRange);
+
+    // 改行を追加
+    const br = document.createElement("br");
+    newRange.insertNode(br);
+    newRange.setStartAfter(br);
+    newRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(newRange);
+  }
+
+  document.getElementById("editor").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      const selection = window.getSelection();
+      if (!selection.rangeCount) return;
+
+      const range = selection.getRangeAt(0);
+      const container = range.commonAncestorContainer;
+
+      // 吹き出し内かどうかをチェック
+      const bubble = container.nodeType === 3
+        ? container.parentElement.closest(".bubble")
+        : container.closest(".bubble");
+
+      // 吹き出し内の場合はEnterを無効化
+      if (bubble) {
+        e.preventDefault();
+        return false;
+      }
+
+      // 吹き出しのwrapper全体が選択されている場合も無効化
+      const wrapper = container.nodeType === 3
+        ? container.parentElement.closest(".bubble-wrapper")
+        : container.closest(".bubble-wrapper");
+
+      if (wrapper && wrapper.contains(range.startContainer) && wrapper.contains(range.endContainer)) {
+        const isWholeWrapperSelected =
+          range.startContainer === wrapper &&
+          range.endContainer === wrapper &&
+          range.startOffset === 0 &&
+          range.endOffset === wrapper.childNodes.length;
+
+        if (isWholeWrapperSelected) {
+          e.preventDefault();
+          return false;
+        }
+      }
+    }
+  });
+
+  function saveContent() {
+    const content = document.getElementById("editor").innerHTML;
+    // localStorageは使用できないため、コンソールに出力
+    console.log("保存された内容:", content);
+    showSaveMessage();
+  }
+
+  function showSaveMessage() {
+    const msg = document.getElementById("saveMessage");
+    msg.classList.add("show");
+    setTimeout(() => {
+      msg.classList.remove("show");
+    }, 2000);
+  }
+
+  window.addEventListener("DOMContentLoaded", () => {
+    // localStorageの代わりにサンプルコンテンツを表示
+    console.log("エディターが読み込まれました");
+  });
+</script>
+
+</body>
+</html>
