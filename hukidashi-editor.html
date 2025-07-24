@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>エディターページ</title>
+  <!-- スタイルと共通スクリプト -->
+  <link rel="stylesheet" href="../style.css?20250630">
+  <link rel="stylesheet" href="editor-style2.css">
+  <script defer src="../sidebar.js"></script>
+</head>
+<body>
+
+<div id="header-placeholder"></div>
+<div class="page-wrapper">
+  <aside id="sidebar">
+    <!-- Sidebar content will be injected here by JS -->
+  </aside>
+  <div class="content-wrapper">
+    <div class="main">
+      <h1>エディターページ</h1>
+      <div class="editor-container">
+        <div class="toolbar">
+          <button onclick="execCmd('bold')"><b>太字</b></button>
+          <button onclick="execCmd('italic')"><i>斜体</i></button>
+          <button onclick="execCmd('underline')"><u>下線</u></button>
+          <button onclick="insertBubble('A')">💬 吹き出しA</button>
+          <button onclick="insertBubble('B')">💬 吹き出しB</button>
+        </div>
+
+        <div id="editor" contenteditable="true">
+        </div>
+
+        <div class="save-controls">
+          <button onclick="saveContent()">💾 保存</button>
+        </div>
+        <div id="saveMessage">保存しました</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 通知エリア -->
+
+
+<script>
+
+  function insertBubble(speaker) {
+    const selection = window.getSelection();
+    const editor = document.getElementById("editor");
+
+    if (!selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+
+    // 吹き出し内なら処理しない（改行だけになる）
+    const container = range.commonAncestorContainer;
+    const bubbleAncestor = container.nodeType === 3 ? container.parentElement.closest(".bubble") : container.closest(".bubble");
+    if (bubbleAncestor) return;
+
+    if (!editor.contains(container)) return;
+
+    const selectedText = selection.toString();
+    if (!selectedText.trim()) return;
+
+    const bubble = document.createElement("div");
+    bubble.className = speaker === 'A' ? "bubble bubble-a" : "bubble bubble-b";
+    bubble.innerHTML = `<span style="font-weight:bold;">${speaker}さん：</span><br>${selectedText}`;
+
+    const wrapper = document.createElement("div");
+    wrapper.style.display = "flex";
+    wrapper.style.justifyContent = speaker === 'A' ? "flex-start" : "flex-end";
+    wrapper.appendChild(bubble);
+
+    range.deleteContents();
+    range.insertNode(wrapper);
+
+    selection.removeAllRanges();
+  }
+
+document.getElementById("editor").addEventListener("keydown", function (e) {
+  if (e.key === "Enter") {
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return;
+
+    const range = selection.getRangeAt(0);
+    const container = range.commonAncestorContainer;
+
+    // 吹き出しの wrapper（flex）と bubble を取得
+    const bubble = container.nodeType === 3
+      ? container.parentElement.closest(".bubble")
+      : container.closest(".bubble");
+
+    const wrapper = bubble ? bubble.parentElement : null;
+
+    // wrapper そのものが完全選択されていた場合にEnter無効化
+    if (wrapper && wrapper.contains(range.startContainer) && wrapper.contains(range.endContainer)) {
+      const isWholeWrapperSelected =
+        range.startContainer === wrapper &&
+        range.endContainer === wrapper &&
+        range.startOffset === 0 &&
+        range.endOffset === wrapper.childNodes.length;
+
+      if (isWholeWrapperSelected) {
+        e.preventDefault(); // 複製防止
+      }
+    }
+  }
+});
+
+
+  function saveContent() {
+    const content = document.getElementById("editor").innerHTML;
+    localStorage.setItem("editorContent", content);
+    showSaveMessage();
+  }
+
+  function showSaveMessage() {
+    const msg = document.getElementById("saveMessage");
+    msg.classList.add("show");
+    setTimeout(() => {
+      msg.classList.remove("show");
+    }, 2000); // 2秒後に非表示
+  }
+
+  window.addEventListener("DOMContentLoaded", () => {
+    const saved = localStorage.getItem("editorContent");
+    if (saved) {
+      document.getElementById("editor").innerHTML = saved;
+    }
+  });
+
+</script>
+
+<script src="../load_header.js"></script>
+</body>
+</html>
