@@ -1,0 +1,349 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>書式メモ</title>
+
+<link rel="stylesheet" href="../style.css?20250630">
+<link rel="stylesheet" href="editor-style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+
+</head>
+<body>
+<div id="header-placeholder"></div>
+<div class="page-wrapper">
+<aside id="sidebar">
+<!-- Sidebar content will be injected here by JS -->
+</aside>
+<div class="content-wrapper">
+<div class="layout">
+
+
+<main class="main">
+
+<h1 class="hyoudai" style="margin-bottom:0px;">書式メモ</h1>
+
+<button id="saveBtn2" class="save-btn" style="display:inline-block;">保存</button>
+
+<!-- ツールバー1 -->
+<div class="toolbar">
+  <button onclick="setBlock('H1')" style="font-weight:bold;font-size:16px">H1</button>
+</div>
+
+<!-- ツールバー2 -->
+<div class="toolbar toolbar-fixed">
+  <button onclick="clearFormat()" style="color:red;">クリア</button>
+  <button onclick="execColor('red')"   style="color:red;">赤</button>
+  <button onclick="exec('bold')"><b>B</b></button>
+  <button onclick="insertBox('pre')" style="background:#ebf3fd;border:2px solid #3498db;">BOX</button>
+  <button onclick="insertBlankLine()">空白行</button>
+  <button onclick="insertBubble('left', getBubbleColor(), false)">左吹き出し</button>
+  <button onclick="insertBubble('right', getBubbleColor(), false)">右吹き出し</button>
+  <button onclick="insertBubble('left', getBubbleColor(), true)">左吹き出し（SN）</button>
+  <button onclick="insertBubble('right', getBubbleColor(), true)">右吹き出し（SN）</button>
+  <select id="bubbleColor">
+    <option value="white">白</option>
+    <option value="gray">グレー</option>
+    <option value="blue">青</option>
+    <option value="black">黒</option>
+    <option value="green">緑</option>
+  </select>
+
+</div>
+
+    <!-- エディタ -->
+    <div id="editor" class="editor" contenteditable="true"></div>
+
+    <!-- 操作ボタン -->
+    <button id="saveBtn" class="save-btn">保存</button>
+    
+    <button id="exportBtn" class="save-btn">HTML でエクスポート</button>
+  </main>
+</div>
+
+<div id="toast">保存しました</div>
+
+<script>
+/* ---------- リッチエディタ基本操作 ---------- */
+function exec(cmd){ document.execCommand(cmd,false,null); }
+function execColor(c){ document.execCommand('foreColor',false,c); }
+
+
+/* ボックス挿入機能 */
+function insertBox(type) {
+  const editor = document.getElementById('editor');
+  const selection = window.getSelection();
+  
+  if (selection.rangeCount > 0) {
+    const range = selection.getRangeAt(0);
+    const contents = range.cloneContents();
+
+    // 選択内容をHTML文字列に変換
+    const div = document.createElement('div');
+    div.appendChild(contents);
+
+    let htmlContent = div.innerHTML;
+
+    // 改行文字列を<br>に変換（テキストのみ選択時）
+    if (!htmlContent || htmlContent.trim() === "") {
+      const selectedText = range.toString();
+      htmlContent = selectedText.replace(/\n/g, '<br>');
+    }
+
+    // ボックスHTML作成
+    const boxHtml = `
+      <div class="pre ${type}" contenteditable="true">
+        ${htmlContent || '<p>ボックス</p>'}
+      </div>
+      <p><br></p>
+    `;
+
+    // 選択範囲をボックスで置換
+    range.deleteContents();
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = boxHtml;
+
+    const frag = document.createDocumentFragment();
+    while (tempDiv.firstChild) {
+      frag.appendChild(tempDiv.firstChild);
+    }
+
+    range.insertNode(frag);
+
+    // カーソルをボックス内に移動
+    const insertedBox = editor.querySelector('.pre:last-of-type');
+    if (insertedBox) {
+      const newRange = document.createRange();
+      newRange.setStart(insertedBox, 0);
+      newRange.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(newRange);
+    }
+
+  } else {
+    // 選択範囲がない場合は末尾に追加
+    const boxHtml = `
+      <div class="pre ${type}" contenteditable="true">
+        <p>BOX</p>
+      </div>
+      <p><br></p>
+    `;
+    editor.insertAdjacentHTML('beforeend', boxHtml);
+  }
+  
+  editor.focus();
+}
+
+
+/* 文字サイズ */
+function setFontSize(size){
+  const map = { small: 2, normal: 3, large: 5 };
+  document.execCommand('fontSize', false, map[size]);
+
+  /* <font size="N"> → <span style="font-size:XXpx"> に変換 */
+  const fontElements = document.querySelectorAll('font[size]');
+  fontElements.forEach(f=>{
+    const level = f.getAttribute('size');
+    const pxMap = {1:10, 2:12, 3:16, 4:18, 5:24, 6:28, 7:32};
+    const span = document.createElement('span');
+    span.style.fontSize = pxMap[level] + 'px';
+    span.innerHTML = f.innerHTML;
+    f.replaceWith(span);
+  });
+}
+
+/* ---------- 保存 / 読込 ---------- */
+const lsKey='richmemo_html';
+const editor=document.getElementById('editor');
+const toast=document.getElementById('toast');
+
+function showToast(){toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),2000);}
+function load(){ editor.innerHTML = localStorage.getItem(lsKey) || ''; }
+function save(){ localStorage.setItem(lsKey, editor.innerHTML); showToast(); }
+
+load();
+document.getElementById('saveBtn').onclick = saveAllMemos;
+
+load();
+document.getElementById('saveBtn2').onclick = saveAllMemos;
+
+function clearFormat(){
+  const sel = window.getSelection();
+  if (!sel.rangeCount) return;
+  const range = sel.getRangeAt(0);
+
+  const container = range.commonAncestorContainer;
+  let box = container.nodeType === 1 ? container.closest('.pre') : container.parentElement.closest('.pre');
+  if (box) {
+    // DocumentFragment で box の中身を取り出し
+    const frag = document.createDocumentFragment();
+    while (box.firstChild) {
+      const node = box.firstChild;
+
+      // ボックス削除ボタンは除外
+      if (node.classList && node.classList.contains('box-delete')) {
+        box.removeChild(node);
+        continue;
+      }
+
+      frag.appendChild(node);
+    }
+
+    // box を削除し、内容だけ挿入
+    box.parentNode.insertBefore(frag, box);
+    const next = box.nextSibling;
+    box.remove();
+
+    // 選択範囲を新しい内容に設定
+    if (next) {
+      const newRange = document.createRange();
+      newRange.setStartBefore(next);
+      newRange.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+    }
+  } else {
+    // ボックスでない場合は通常クリア
+    document.execCommand('removeFormat', false, null);
+    document.execCommand('formatBlock', false, 'P');
+
+    const selectedNodes = range.cloneContents().querySelectorAll('*');
+    selectedNodes.forEach(node => {
+      if (node.style) {
+        node.style.fontSize = '';
+        node.style.backgroundColor = '';
+        node.style.color = '';
+      }
+    });
+  }
+}
+
+function insertBlankLine(){
+  const sel = window.getSelection();
+  if (!sel.rangeCount) return;
+  const range = sel.getRangeAt(0);
+
+  // 現在選択している要素を取得
+  let node = range.startContainer;
+  while (node && node.nodeType !== 1) {
+    node = node.parentNode;
+  }
+
+  // ボックス（.pre クラス）を含むか確認
+  let box = node.closest('.pre');
+
+  if (box) {
+    // ボックスの直後に挿入
+    const blankLine = document.createElement('p');
+    blankLine.innerHTML = '<br>';
+
+    if (box.nextSibling) {
+      box.parentNode.insertBefore(blankLine, box.nextSibling);
+    } else {
+      box.parentNode.appendChild(blankLine);
+    }
+
+    // カーソルを新しい空白行へ移動
+    const newRange = document.createRange();
+    newRange.setStart(blankLine, 0);
+    newRange.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(newRange);
+
+  } else if (node) {
+    // 通常要素の場合
+
+    const blankLine = document.createElement('p');
+    blankLine.innerHTML = '<br>';
+
+    if (node.nextSibling) {
+      node.parentNode.insertBefore(blankLine, node.nextSibling);
+    } else {
+      node.parentNode.appendChild(blankLine);
+    }
+
+    // カーソル移動
+    const newRange = document.createRange();
+    newRange.setStart(blankLine, 0);
+    newRange.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(newRange);
+  }
+
+  // フォーカス維持
+  editor.focus();
+}
+
+
+const textEditor = document.getElementById('textEditor');
+const textKey = 'textmemo_plain';
+
+// メモ切り替え表示
+function showMemo(id){
+  // 全メモを非表示
+  document.querySelectorAll('.memo, #editor, #textEditor').forEach(m=>m.style.display='none');
+  // 指定メモを表示
+  document.getElementById(id).style.display='block';
+}
+
+// 全メモ保存
+function saveAllMemos(){
+  // 書式メモ
+  ['editor','editor2','editor3'].forEach(id=>{
+    const html = document.getElementById(id).innerHTML;
+    localStorage.setItem(id+'_html', html);
+  });
+
+  showToast();
+}
+
+// 全メモ読み込み
+function loadAllMemos(){
+  ['editor','editor2','editor3'].forEach(id=>{
+    document.getElementById(id).innerHTML = localStorage.getItem(id+'_html') || '';
+  });
+  document.getElementById('grid4').innerHTML = localStorage.getItem('grid4_html') || document.getElementById('grid4').innerHTML;
+
+  ['textEditor1','textEditor2'].forEach(id=>{
+    document.getElementById(id).value = localStorage.getItem(id+'_text') || '';
+  });
+}
+
+// 初期読込
+loadAllMemos();
+
+function getCurrentMemo(){
+  // 表示中の .memo または #editor を取得
+  const visible = document.querySelector('.memo:not([style*="display: none"]), #editor:not([style*="display: none"])');
+  return visible;
+}
+
+// テキストメモ保存・読込
+function loadText(){
+  textEditor.value = localStorage.getItem(textKey) || '';
+}
+
+function saveText(){
+  if(editor.style.display !== 'none'){
+    localStorage.setItem(lsKey, editor.innerHTML);
+  } else {
+    localStorage.setItem(textKey, textEditor.value);
+  }
+  showToast();
+}
+
+// 初期読込
+loadText();
+</script>
+</div>
+</div>
+</div>
+
+<script src="export.js"></script>
+<script src="bubble.js"></script>
+<script>
+  document.getElementById('exportBtn').onclick = exportEditorHTML;
+</script>
+</body>
+</html>
